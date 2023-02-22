@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry';
 import { Point } from './types/Point';
 import textureUrl from './textures/disc.png'
 
@@ -72,7 +73,25 @@ const pMaterial = new THREE.PointsMaterial({
 });
 
 const pointCloud = new THREE.Points( geometry, pMaterial );
-scene.add(pointCloud)
+scene.add(pointCloud);
+
+let vectors: Array<THREE.Vector3> = [];
+for (let i = 0; i < pointsCount; i++) {
+	vectors.push(new THREE.Vector3(pointsPositions[ i * 3 ], pointsPositions[ i * 3 + 1 ], pointsPositions[ i * 3 + 2 ]))
+}
+
+let convexGeometry = new ConvexGeometry( vectors );
+const meshMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    opacity: 0.3,
+    transparent: true,
+    wireframe: true,
+    wireframeLinejoin: 'miter',
+});
+let convexMesh = new THREE.Mesh( convexGeometry, meshMaterial.clone() );
+convexMesh.material.side = THREE.FrontSide;
+convexMesh.renderOrder = 1;
+scene.add(convexMesh);
 
 camera.position.z = 5;
 
