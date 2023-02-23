@@ -4,10 +4,16 @@ import { ConvexGeometry } from 'three/examples/jsm/geometries/ConvexGeometry';
 import { Point } from './types/Point';
 import textureUrl from './textures/disc.png'
 
+interface IPointsMovement {
+	velocity: THREE.Vector3
+}
+
+
 const size = 1000;
 const sizeHalf = size / 2;
 const pointsCount = 50;
 const maxPointsCount = 1000;
+const pointsData: IPointsMovement[] = [];
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -45,7 +51,7 @@ camera.up.set(0,0,1);
 
 const pointsPositions = new Float32Array( maxPointsCount * 3 );
 
-let points: Array<Point> = [];
+// let points: Array<Point> = [];
 for ( let i = 0; i < pointsCount; i++ ) {
     const point: Point = {
         number: i + 1,
@@ -57,7 +63,11 @@ for ( let i = 0; i < pointsCount; i++ ) {
 	pointsPositions[ i * 3 + 1 ] = point.y;
 	pointsPositions[ i * 3 + 2 ] = point.z;
     
-    points.push(point);
+    // points.push(point);
+
+    pointsData.push({
+		velocity: new THREE.Vector3( -1 * Math.random() * 2, -1 * Math.random() * 2, -1 * Math.random() * 2 )
+	});
 }
 
 const geometry = new THREE.BufferGeometry();
@@ -95,7 +105,36 @@ scene.add(convexMesh);
 
 camera.position.z = 5;
 
-function animate() {
+const animate = () => {
+    vectors.length = 0;
+
+	for (let i = 0; i < pointsCount; i++) {
+		const pointData = pointsData[ i ];
+		
+		pointsPositions[ i * 3 ] += pointData.velocity.x;
+		pointsPositions[ i * 3 + 1 ] += pointData.velocity.y;
+		pointsPositions[ i * 3 + 2 ] += pointData.velocity.z;
+
+		vectors.push(new THREE.Vector3(pointsPositions[ i * 3 ], pointsPositions[ i * 3 + 1 ], pointsPositions[ i * 3 + 2 ]))
+		
+        if (pointsPositions[ i * 3 + 1 ] < -size / 2 || pointsPositions[ i * 3 + 1 ] > size / 2) {
+            pointData.velocity.y = - pointData.velocity.y;
+        }
+    
+        if ( pointsPositions[ i * 3 ] < -size / 2 || pointsPositions[ i * 3 ] > size / 2 ) {
+            pointData.velocity.x = - pointData.velocity.x;
+        }
+    
+        if ( pointsPositions[ i * 3 + 2 ] < -size / 4 || pointsPositions[ i * 3 + 2 ] > size / 4) {
+            pointData.velocity.z = - pointData.velocity.z;
+        }
+	}
+
+    convexGeometry = new ConvexGeometry( vectors );
+
+    convexMesh.geometry = convexGeometry;
+
+	geometry.attributes.position.needsUpdate = true;
 
     requestAnimationFrame( animate );
 
