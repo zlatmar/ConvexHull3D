@@ -1,6 +1,6 @@
 # ConvexHull3D
 
-### Built With
+## Built With
 
 The project is written mainly in TypeScript. Three.js is used for the representation of the 3D objects. Vite.js is used for a development tool.
 
@@ -21,7 +21,7 @@ The project is written mainly in TypeScript. Three.js is used for the representa
 ```
 3. Run project
 ```sh
-   npm dev
+   npm run dev
 ```
 
 ## License
