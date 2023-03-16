@@ -207,8 +207,7 @@ export class ConvexHull {
                 
                 if (pointFourIndex !== -1) {
                     const pointFour = points.splice(pointFourIndex, 1)[0];
-                    // return [ [pointOne, pointTwo, pointThree, pointFour], this.shuffle(points) ];
-                    return [ [pointOne, pointTwo, pointThree, pointFour], points ];
+                    return [ [pointOne, pointTwo, pointThree, pointFour], this.shuffle(points) ];
                 }
                 else {
                     //  all points are in the same plane => 2D convex hull
@@ -300,7 +299,7 @@ export class ConvexHull {
         return boundaryHalfEdges;
     }
 
-    private shuffle(points: IPoint[]) {
+    private shuffle(points: ConvexPoint[]): ConvexPoint[] {
         // Shuffle algorithm Fisher-Yates (aka Knuth) Shuffle.
         let currentIndex = points.length, randomIndex;
 
