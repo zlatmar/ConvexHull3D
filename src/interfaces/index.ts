@@ -8,6 +8,7 @@ import { IConvexPoint } from "./IConvexPoint";
 import IConvexFace from "./IConvexFace";
 import { IPoint3D } from "./IPoint3D";
 import { IFace } from "./IFace";
+import { IConvexVertex } from "./IConvexVertex";
 
 export type {
     IHalfEdge,
@@ -16,6 +17,7 @@ export type {
     IEdge,
     IVector,
     IConvexMedian,
+    IConvexVertex,
     IConvexPoint,
     IConvexFace,
     IPoint3D,

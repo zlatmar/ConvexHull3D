@@ -1,9 +1,9 @@
 import IConvexFace from "./IConvexFace";
-import { IVertex } from "./IVertex";
+import { IConvexVertex } from "./IConvexVertex";
 
 export interface IHalfEdge {
     id: string,
-    origin: IVertex;
+    origin: IConvexVertex;
     twin: IHalfEdge;
     incidentFace: IConvexFace;
     next: IHalfEdge;

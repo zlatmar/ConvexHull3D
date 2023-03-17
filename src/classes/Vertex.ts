@@ -1,6 +1,6 @@
-import { IConvexPoint, IHalfEdge, IVertex } from "../interfaces";
+import { IConvexPoint, IHalfEdge, IConvexVertex } from "../interfaces";
 
-export default class Vertex implements IVertex {
+export default class Vertex implements IConvexVertex {
     id: string;
     coordinates: number[];
     incidentEdge: IHalfEdge | null;

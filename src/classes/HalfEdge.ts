@@ -1,9 +1,9 @@
-import { IConvexFace, IConvexPoint, IHalfEdge, IVertex } from "../interfaces";
+import { IConvexFace, IConvexPoint, IConvexVertex, IHalfEdge } from "../interfaces";
 
 export default class HalfEdge implements IHalfEdge {
 
     public id: string;
-    private _origin: IVertex;
+    private _origin: IConvexVertex;
     private _twin: IHalfEdge;
     private _incidentFace: IConvexFace;
     private _next: IHalfEdge;
@@ -19,7 +19,7 @@ export default class HalfEdge implements IHalfEdge {
     public get origin() {
         return this._origin;
     }
-    public set origin(originVertex: IVertex) {
+    public set origin(originVertex: IConvexVertex) {
         this._origin = originVertex;
     }
 

@@ -3,7 +3,7 @@ import { IFace, IHalfEdge } from "../interfaces";
 export default class Face implements IFace {
     id: string;
     outerComponent: IHalfEdge;
-    innerComponent: IHalfEdge | null;
+    innerComponents: IHalfEdge[] | null;
 
     constructor(id: string) {
         this.id = id;
