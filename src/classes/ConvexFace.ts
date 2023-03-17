@@ -34,8 +34,8 @@ class ConvexFace extends Face implements IConvexFace {
     }
 
     private static getVectorsFromPoints(pointOne: IPoint, pointTwo: IPoint, pointThree: IPoint) {
-        const vec1: IPoint = {x: pointTwo.x - pointOne.x, y: pointTwo.y - pointOne.y, z: pointTwo.z - pointOne.z};
-        const vec2: IPoint = {x: pointThree.x - pointOne.x, y: pointThree.y - pointOne.y, z: pointThree.z - pointOne.z};
+        const vec1 = new Vector(pointTwo.x - pointOne.x, pointTwo.y - pointOne.y, pointTwo.z - pointOne.z);
+        const vec2 = new Vector(pointThree.x - pointOne.x, pointThree.y - pointOne.y,pointThree.z - pointOne.z);
     
         return [ vec1, vec2 ];
     }
