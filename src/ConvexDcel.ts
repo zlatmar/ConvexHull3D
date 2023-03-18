@@ -2,7 +2,7 @@
 import ConvexFace from "./classes/ConvexFace";
 import Vertex from "./classes/ConvexVertex";
 import { IConvexFace, IConvexHalfEdge, IConvexPoint } from "./interfaces";
-import DCEL from '../../DCEL/dcel';
+import DCEL from '../DCEL/dcel';
 import ConvexHalfEdge from "./classes/ConvexHalfEdge";
 import ConvexVertex from "./classes/ConvexVertex";
 

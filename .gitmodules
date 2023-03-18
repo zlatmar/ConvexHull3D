@@ -1,0 +1,3 @@
+[submodule "DCEL"]
+	path = DCEL
+	url = https://github.com/zlatmar/DCEL.git

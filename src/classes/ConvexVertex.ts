@@ -1,4 +1,4 @@
-import Vertex from "../../../DCEL/classes/Vertex";
+import Vertex from "../../DCEL/classes/Vertex";
 import { IConvexPoint, IConvexVertex, IConvexHalfEdge } from "../interfaces";
 
 

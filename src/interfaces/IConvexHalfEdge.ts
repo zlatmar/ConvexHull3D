@@ -1,4 +1,4 @@
-import { IHalfEdge } from "../../../DCEL/intefaces";
+import { IHalfEdge } from "../../DCEL/intefaces";
 import IConvexFace from "./IConvexFace";
 import { IConvexVertex } from "./IConvexVertex";
 

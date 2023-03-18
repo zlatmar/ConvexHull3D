@@ -1,4 +1,4 @@
-import Face from "../../../DCEL/classes/Face";
+import Face from "../../DCEL/classes/Face";
 import { IConvexFace, IConvexHalfEdge, IConvexPoint, IPoint, IVector } from "../interfaces";
 import Point3D from "./Point3D";
 import Vector from "./Vector";
