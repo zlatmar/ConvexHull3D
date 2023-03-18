@@ -1,4 +1,4 @@
-import DCEL from "../dcel";
+import ConvexDcel from "../ConvexDcel";
 import { IConvexPoint, IHalfEdge, IPoint, IVector } from "../interfaces";
 import ConflictGraph from "../types/ConflictGraph";
 import ConvexFace from "./ConvexFace";
@@ -8,7 +8,7 @@ import Point3D from "./Point3D";
 
 
 export class ConvexHull {
-    private dcel: DCEL;
+    private convexDcel: ConvexDcel;
     private conflictGraph: ConflictGraph; // bipartite graph
     private median: Median;
     private originPoints: IConvexPoint[];
@@ -23,7 +23,7 @@ export class ConvexHull {
     private calculate(convexPoints: ConvexPoint[]) {
         try {
             const [ initialPoints, points ] = this.getInitialPoints(convexPoints);
-            this.dcel = new DCEL(initialPoints); // init DCEL in constructor
+            this.convexDcel = new ConvexDcel(initialPoints); // init DCEL in constructor
             initialPoints.forEach(p => {
                 this.median.addPoint(p);
             });
@@ -49,7 +49,7 @@ export class ConvexHull {
         const copiedConflictFaceIds = [...conflictFaceIds]
         let horizonHalfEdges: IHalfEdge[] = [];
         copiedConflictFaceIds.forEach(faceId => {
-            const visibleFace = this.dcel.faces[faceId];
+            const visibleFace = this.convexDcel.faces[faceId];
             const halfEdges = this.getHorizonEdges(visibleFace, copiedConflictFaceIds);
             horizonHalfEdges = horizonHalfEdges.concat(halfEdges);
             // delete this.conflictGraph.faces[faceId];
@@ -63,11 +63,11 @@ export class ConvexHull {
                     }
                 }
             }
-            this.dcel.removeFacesById(faceId);
+            this.convexDcel.removeFaceById(faceId);
         });
 
         horizonHalfEdges.forEach(horizonHalfEdge => {
-            const newFace = this.dcel.addPointByBoundary(point, horizonHalfEdge);
+            const newFace = this.convexDcel.addPointByBoundary(point, horizonHalfEdge);
             this.updateConflictGraphByNeighbourFaces(horizonHalfEdge, newFace, point);
         })
         delete this.conflictGraph.points[`${point.number}`];
@@ -89,10 +89,10 @@ export class ConvexHull {
     }
 
     private updateConflictGraphByPoint(point: ConvexPoint) {
-        for (const faceId in this.dcel.faces) {
-            if (this.dcel.faces.hasOwnProperty(faceId)) {
+        for (const faceId in this.convexDcel.faces) {
+            if (this.convexDcel.faces.hasOwnProperty(faceId)) {
                 // if (!faceId.includes(`${point.number}`)) {
-                    const face = this.dcel.faces[faceId];
+                    const face = this.convexDcel.faces[faceId];
                     if (this.isFaceVisibleFromPoint(face, point)) {
                         // add face id to point conflict list 
                         if (this.conflictGraph.points[`${point.number}`]) {
@@ -243,7 +243,7 @@ export class ConvexHull {
 
     public getFaces() {
         let resultFaces = [];
-        const faces = this.dcel.faces;
+        const faces = this.convexDcel.faces;
         for (const faceId in faces) {
             if (faces.hasOwnProperty(faceId)) {
                 const outerComponent = faces[faceId].outerComponent;

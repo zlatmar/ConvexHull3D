@@ -1,7 +1,6 @@
-import { IConvexFace, IConvexPoint, IConvexVertex, IHalfEdge } from "../interfaces";
+import { IConvexFace, IConvexHalfEdge, IConvexVertex, IHalfEdge } from "../interfaces";
 
-export default class HalfEdge implements IHalfEdge {
-
+export default class ConvexHalfEdge implements IConvexHalfEdge {
     public id: string;
     private _origin: IConvexVertex;
     private _twin: IHalfEdge;
@@ -9,8 +8,8 @@ export default class HalfEdge implements IHalfEdge {
     private _next: IHalfEdge;
     private _prev: IHalfEdge;
 
-    constructor(point1: IConvexPoint, point2: IConvexPoint, incidentFace: IConvexFace | null) {
-        this.id = `${point1.number}-${point2.number}`; // ${incidentFace?.id ? ':' + incidentFace.id : ''}
+    constructor(id: string, incidentFace: IConvexFace | null) {
+        this.id = id;
         if (incidentFace) {
             this._incidentFace = incidentFace;
         }

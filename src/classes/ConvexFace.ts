@@ -1,9 +1,12 @@
-import { IConvexFace, IConvexPoint, IPoint, IVector } from "../interfaces";
-import Face from "./Face";
+import Face from "../../../DCEL/classes/Face";
+import { IConvexFace, IConvexHalfEdge, IConvexPoint, IPoint, IVector } from "../interfaces";
 import Point3D from "./Point3D";
 import Vector from "./Vector";
 
 class ConvexFace extends Face implements IConvexFace {
+    declare outerComponent: IConvexHalfEdge;
+    declare innerComponents: IConvexHalfEdge[] | null;
+
     private _originFacePoint: IPoint;
     private _nextFacePoint: IPoint;
     private _prevNextPoint: IPoint;
