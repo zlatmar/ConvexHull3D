@@ -13,7 +13,7 @@ The project is written mainly in TypeScript. Three.js is used for the representa
 
 1. Clone this repo
 ```sh
-   git clone https://github.com/zlatmar/ConvexHull3D.git
+   git clone --recursive https://github.com/zlatmar/ConvexHull3D.git
 ```
 2. Install NPM packages
 ```sh
@@ -25,7 +25,7 @@ The project is written mainly in TypeScript. Three.js is used for the representa
 ```
 
 ## License
-Distributed under the MIT License. See LICENSE.txt for more information.
+Distributed under the MIT License. See LICENSE for more information.
 
 
 
