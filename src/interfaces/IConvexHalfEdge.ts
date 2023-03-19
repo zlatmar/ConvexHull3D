@@ -1,5 +1,5 @@
 import { IHalfEdge } from "../../DCEL/intefaces";
-import IConvexFace from "./IConvexFace";
+import { IConvexFace } from "./IConvexFace";
 import { IConvexVertex } from "./IConvexVertex";
 
 export interface IConvexHalfEdge extends IHalfEdge {
