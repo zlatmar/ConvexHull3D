@@ -2,6 +2,18 @@
 
 A randomized incremental 3D convex hull, based on *Computational Geometry: Algorithms and Applications*, with a Three.js visualization. Fifty points move through a box, bounce off its walls, and rebuild the hull on every animation update.
 
+**[Open the live demo](https://zlatmar.github.io/ConvexHull3D/)** (available after the first GitHub Pages deployment).
+
+## Publish the live demo
+
+GitHub Pages can host this browser-only app for free while the repository is public.
+
+1. Open the repository's **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**.
+2. Push the deployment workflow to `main`. The **Deploy live demo** action tests the geometry, builds the app, and publishes `dist`.
+3. Once that action succeeds, open **https://zlatmar.github.io/ConvexHull3D/**. You can also add this URL to the repository's **About → Website** field.
+
+Later pushes to `main` automatically update the demo. The workflow checks out the DCEL submodule and sets Vite's asset base to `/ConvexHull3D/`; normal local development and builds keep their default root path. No custom domain or separate server is required. The workflow can also be started manually from **Actions → Deploy live demo → Run workflow** after it has been pushed.
+
 ## Run
 
 ```sh
