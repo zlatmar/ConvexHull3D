@@ -1,202 +1,116 @@
-// Doubly connected edge list
-import ConvexFace from "./classes/ConvexFace";
-import Vertex from "./classes/ConvexVertex";
-import { IConvexFace, IConvexHalfEdge, IConvexPoint } from "./interfaces";
 import DCEL from '../DCEL/dcel';
-import ConvexHalfEdge from "./classes/ConvexHalfEdge";
-import ConvexVertex from "./classes/ConvexVertex";
+import ConvexFace from './classes/ConvexFace';
+import ConvexHalfEdge from './classes/ConvexHalfEdge';
+import ConvexVertex from './classes/ConvexVertex';
+import { IConvexFace, IConvexHalfEdge, IConvexPoint } from './interfaces';
+import { areCollinear, orientation } from './geometry/predicates';
 
 export default class ConvexDcel extends DCEL {
+    vertexes: Record<string, ConvexVertex> = {};
+    faces: Record<string, ConvexFace> = {};
+    halfEdges: Record<string, IConvexHalfEdge> = {};
+    private outgoing = new Map<string, Set<IConvexHalfEdge>>();
 
-    vertexes: { [id: string]: ConvexVertex } = {};
-
-    faces: { [id: string]: ConvexFace } = {};
-
-    halfEdges: { [id: string]: IConvexHalfEdge } = {};
-
-    // initialize from tetrahedron
-    // The array of points must consist of four initial points
     constructor(points: IConvexPoint[]) {
         super();
-        const p1 = points[0];
-        const p2 = points[1];
-        const p3 = points[2];
-        const p4 = points[3];
-
-        this.createTopology(p1, p2, p4);
-        this.createTopology(p3, p1, p4);
-        this.createTopology(p2, p3, p4);
-        this.createTopology(p3, p2, p1);
-    }
-
-    override getVertex(point: IConvexPoint) {
-        const vertex = this.vertexes[`${point.number}`];
-        if (vertex) {
-            return vertex;
-        } else {
-            const newVertex = this.createVertex(point);
-            this.vertexes[newVertex.id] = newVertex;
-            return newVertex;
+        if (points.length !== 4 || orientation(points[0], points[1], points[2], points[3]) === 0) {
+            throw new RangeError('The initial tetrahedron must have four affinely independent points.');
+        }
+        for (let opposite = 0; opposite < 4; opposite++) {
+            const face = points.filter((_, i) => i !== opposite);
+            if (orientation(face[0], face[1], face[2], points[opposite]) > 0) [face[1], face[2]] = [face[2], face[1]];
+            this.createTopology(face[0], face[1], face[2]);
         }
     }
 
-    private createTopology(point1: IConvexPoint, point2: IConvexPoint, point3: IConvexPoint) {
-        // 1. Create vertexes
-        this.getVertex(point1);
-        this.getVertex(point2);
-        this.getVertex(point3);
-
-        // 2. Create faces
-        const face = this.createConvexFace(point1, point2, point3);
-        this.faces[face.id] = face;
-
-        // 3. Create Half edges
-        this.createHalfEdges(point1, point2, point3)
+    override createVertex(point: IConvexPoint): ConvexVertex {
+        return new ConvexVertex(`${point.number}`, [point.x, point.y, point.z], null);
     }
 
-    private createConvexFace(point1: IConvexPoint, point2: IConvexPoint, point3: IConvexPoint) {
-        return new ConvexFace(point1, point2, point3);
+    override getVertex(point: IConvexPoint): ConvexVertex {
+        const id = `${point.number}`;
+        if (!this.vertexes[id]) {
+            this.vertexes[id] = this.createVertex(point);
+            this.outgoing.set(id, new Set());
+        }
+        return this.vertexes[id];
     }
 
-    override getHalfEdge(halfEdgeId: string, face: IConvexFace | null): IConvexHalfEdge {
-        // const halfEdgeId = `${edgePoints.firstEdgePoint.number}-${edgePoints.secondEdgePoint.number}`;
-        const halfEdge = this.halfEdges[halfEdgeId];
-        if (halfEdge) {
-            if (face && !halfEdge.incidentFace) halfEdge.incidentFace = face;
-            return halfEdge;
-        } else {
-            const newHalfEdge = new ConvexHalfEdge(halfEdgeId, face);
-            this.halfEdges[newHalfEdge.id] = newHalfEdge;
-            return newHalfEdge;
-        }
+    override getHalfEdge(id: string, face: IConvexFace | null): IConvexHalfEdge {
+        return this.halfEdges[id] ?? (this.halfEdges[id] = new ConvexHalfEdge(id, face));
     }
 
-    override getHalfEdgeById(halfEdgeId: string): IConvexHalfEdge | null {
-        return this.halfEdges[halfEdgeId] || null;
-    }
+    override getHalfEdgeById(id: string): IConvexHalfEdge | null { return this.halfEdges[id] ?? null; }
+    override getFaceById(id: string): IConvexFace { return this.faces[id]; }
 
-    override getFaceById(faceId: string): IConvexFace {
-        return this.faces[faceId];
-    }
-
-    private createHalfEdges(facePoint1: IConvexPoint, facePoint2: IConvexPoint, facePoint3: IConvexPoint) {
-        const faceId = `${facePoint1.number}-${facePoint2.number}-${facePoint3.number}`;
-        const face = this.getFaceById(faceId);
-        
-        const currentHalfEdgeId = `${facePoint1.number}-${facePoint2.number}`;
-        const currentHalfEdge = this.getHalfEdge(currentHalfEdgeId, face);
-        currentHalfEdge.origin = this.getVertex(facePoint1);
-        face.outerComponent = currentHalfEdge;
-
-        const previousHalfEdgeId = `${facePoint3.number}-${facePoint1.number}`;
-        const previousHalfEdge = this.getHalfEdge(previousHalfEdgeId, face);
-        previousHalfEdge.origin = this.getVertex(facePoint3);
-
-        const nextHalfEdgeId = `${facePoint2.number}-${facePoint3.number}`;
-        const nextHalfEdge = this.getHalfEdge(nextHalfEdgeId, face);
-        nextHalfEdge.origin = this.getVertex(facePoint2);
-
-        const currentTwinHalfEdge = this.getHalfEdgeById(`${facePoint2.number}-${facePoint1.number}`);
-        if (currentTwinHalfEdge) {
-            currentTwinHalfEdge.origin = this.getVertex(facePoint2);
-        }
-
-        const previousTwinHalfEdge = this.getHalfEdgeById(`${facePoint1.number}-${facePoint3.number}`);
-        if (previousTwinHalfEdge) {
-            previousTwinHalfEdge.origin = this.getVertex(facePoint1);
-        }
-
-        const nextTwinHalfEdge = this.getHalfEdgeById(`${facePoint3.number}-${facePoint2.number}`);
-        if (nextTwinHalfEdge) {
-            nextTwinHalfEdge.origin = this.getVertex(facePoint3);
-        }
-
-        currentHalfEdge.next = nextHalfEdge;
-        currentHalfEdge.prev = previousHalfEdge;
-
-        previousHalfEdge.next = currentHalfEdge;
-        previousHalfEdge.prev = nextHalfEdge;
-
-        nextHalfEdge.next = previousHalfEdge;
-        nextHalfEdge.prev = currentHalfEdge;
-
-        if (currentTwinHalfEdge) {
-            currentHalfEdge.twin = currentTwinHalfEdge;
-            currentTwinHalfEdge.twin = currentHalfEdge;
-            this.halfEdges[currentTwinHalfEdge.id] = currentTwinHalfEdge;
-        }
-
-        if (previousTwinHalfEdge) {
-            previousTwinHalfEdge.twin = previousHalfEdge;
-            previousHalfEdge.twin = previousTwinHalfEdge;
-            this.halfEdges[previousTwinHalfEdge.id] = previousTwinHalfEdge;
-        }
-        
-        if (nextTwinHalfEdge) {
-            nextTwinHalfEdge.twin = nextHalfEdge;
-            nextHalfEdge.twin = nextTwinHalfEdge;
-            this.halfEdges[nextTwinHalfEdge.id] = nextTwinHalfEdge;
-        }
-
-        this.halfEdges[currentHalfEdge.id] = currentHalfEdge;
-        this.halfEdges[previousHalfEdge.id] = previousHalfEdge;
-        this.halfEdges[nextHalfEdge.id] = nextHalfEdge;
-
-        return [ currentHalfEdge, previousHalfEdge, nextHalfEdge, currentTwinHalfEdge, previousTwinHalfEdge, nextTwinHalfEdge ];
-    }
-
-    override createVertex(point: IConvexPoint): Vertex {
-        const vertex = new Vertex(`${point.number}`, [point.x, point.y, point.z], null);
-
-        return vertex;
-    }
-
-    public removeFacesByIds(faceIds: string[]) {
-        faceIds.forEach(faceId => {
-            const targetFace = this.faces[faceId];
-            const halfEdge = targetFace.outerComponent;
-            const nextHalfEdge = halfEdge.next;
-            const prevHalfEdge = halfEdge.prev;
-
-            delete this.faces[faceId];
-            delete this.halfEdges[halfEdge.id];
-            delete this.halfEdges[nextHalfEdge.id];
-            delete this.halfEdges[prevHalfEdge.id];
-
-            // to do delete vertexes
-
+    private createTopology(a: IConvexPoint, b: IConvexPoint, c: IConvexPoint): ConvexFace {
+        if (areCollinear(a, b, c)) throw new Error('Cannot create a degenerate hull face.');
+        const points = [a, b, c];
+        const ids = points.map((point, i) => `${point.number}-${points[(i + 1) % 3].number}`);
+        if (ids.some(id => this.halfEdges[id])) throw new Error('A directed hull edge already belongs to a face.');
+        const face = new ConvexFace(a, b, c);
+        const edges = ids.map(id => new ConvexHalfEdge(id, face));
+        edges.forEach((edge, i) => {
+            edge.origin = this.getVertex(points[i]);
+            edge.next = edges[(i + 1) % 3];
+            edge.prev = edges[(i + 2) % 3];
+            const twin = this.halfEdges[`${points[(i + 1) % 3].number}-${points[i].number}`];
+            if (twin) { edge.twin = twin; twin.twin = edge; }
+            this.halfEdges[edge.id] = edge;
+            this.outgoing.get(edge.origin.id)!.add(edge);
+            edge.origin.incidentEdge = edge;
         });
+        face.outerComponent = edges[0];
+        this.faces[face.id] = face;
+        return face;
     }
 
-    public removeFaceById(faceId: string) {
-        const targetFace = this.faces[faceId];
-        const halfEdge = targetFace.outerComponent;
-        const nextHalfEdge = halfEdge.next;
-        const prevHalfEdge = halfEdge.prev;
-
-        delete this.faces[faceId];
-        delete this.halfEdges[halfEdge.id];
-        delete this.halfEdges[nextHalfEdge.id];
-        delete this.halfEdges[prevHalfEdge.id];
-
-        // to do delete vertexes
-
+    public removeFaceById(id: string): void {
+        const face = this.faces[id];
+        if (!face) throw new Error(`Unknown hull face ${id}.`);
+        const first = face.outerComponent;
+        for (const edge of [first, first.next, first.prev]) {
+            const outgoing = this.outgoing.get(edge.origin.id)!;
+            outgoing.delete(edge);
+            delete this.halfEdges[edge.id];
+            edge.origin.incidentEdge = outgoing.values().next().value ?? null;
+            if (!outgoing.size) {
+                delete this.vertexes[edge.origin.id];
+                this.outgoing.delete(edge.origin.id);
+            }
+        }
+        delete this.faces[id];
     }
 
-    public addPoint(point: IConvexPoint, boundaryHalfEdges: IConvexHalfEdge[]) {
-        boundaryHalfEdges.forEach(halfEdge => {
-            const vertex1 = halfEdge.origin;
-            const vertex2 = halfEdge.twin.origin;
-            
-            this.createTopology(point, vertex1.toPoint(), vertex2.toPoint());
-        })
+    public removeFacesByIds(ids: string[]): void { ids.forEach(id => this.removeFaceById(id)); }
+
+    public addPointByBoundary(point: IConvexPoint, boundary: IConvexHalfEdge): ConvexFace {
+        return this.createTopology(point, boundary.origin.toPoint(), boundary.next.origin.toPoint());
     }
 
-    public addPointByBoundary(point: IConvexPoint, boundaryHalfEdge: IConvexHalfEdge) {
-        const vertex1 = boundaryHalfEdge.origin;
-        const vertex2 = boundaryHalfEdge.twin.origin;
-        this.createTopology(point, vertex1.toPoint(), vertex2.toPoint());
-        const faceId = `${point.number}-${vertex1.id}-${vertex2.id}`;
-        return this.faces[faceId];
+    public addPoint(point: IConvexPoint, boundary: IConvexHalfEdge[]): void {
+        boundary.forEach(edge => this.addPointByBoundary(point, edge));
+    }
+
+    public assertValid(): void {
+        const faces = Object.values(this.faces), edges = Object.values(this.halfEdges), vertices = Object.values(this.vertexes);
+        if (vertices.length - edges.length / 2 + faces.length !== 2 || edges.length !== 3 * faces.length) throw new Error('Invalid Euler characteristic.');
+        for (const face of faces) {
+            const edge = face.outerComponent;
+            if (edge.next.next !== edge.prev || edge.prev.next !== edge) throw new Error('Invalid triangular face cycle.');
+            if (areCollinear(edge.origin.toPoint(), edge.next.origin.toPoint(), edge.prev.origin.toPoint())) throw new Error('Degenerate hull face.');
+            for (const item of [edge, edge.next, edge.prev]) {
+                if (item.incidentFace !== face || this.halfEdges[item.id] !== item) throw new Error('Face-edge registration mismatch.');
+            }
+        }
+        for (const edge of edges) {
+            if (edge.next.prev !== edge || edge.prev.next !== edge || edge.twin?.twin !== edge) throw new Error('Broken half-edge links.');
+            if (this.halfEdges[edge.twin.id] !== edge.twin || edge.twin.origin !== edge.next.origin) throw new Error('Invalid twin endpoint.');
+            if (this.faces[edge.incidentFace.id] !== edge.incidentFace) throw new Error('Edge references a deleted face.');
+            if (this.vertexes[edge.origin.id] !== edge.origin) throw new Error('Edge references a deleted vertex.');
+        }
+        for (const vertex of vertices) {
+            if (!vertex.incidentEdge || this.halfEdges[vertex.incidentEdge.id] !== vertex.incidentEdge || vertex.incidentEdge.origin !== vertex) throw new Error('Invalid vertex incident edge.');
+        }
     }
 }

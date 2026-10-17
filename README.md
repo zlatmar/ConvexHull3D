@@ -1,53 +1,58 @@
 # ConvexHull3D
 
-## Introduction
-This project represents a solution for finding the Convex hull in 3D space of a group of points. This solution has been developed by following the Randomized incremental algorithm explained in the book [Computational Geometry (Algorithms and Application)](https://link.springer.com/book/10.1007/978-3-540-77974-2).
+A randomized incremental 3D convex hull, based on *Computational Geometry: Algorithms and Applications*, with a Three.js visualization. Fifty points move through a box, bounce off its walls, and rebuild the hull on every animation update.
 
-## Randomized Convex hull in 3D
-The solution find the convex hull of points in 3D space. In order to find the convex hull, at least 4 points with three dimensional coordinates are required. The data structure that holds the Convex hull is a Doubly Connected Edge List (DCEL) that was included as a [separate GitHub project](https://github.com/zlatmar/DCEL).
+## Run
 
-##	Conflict graph
-The purpose of the conflict graph is to store information about visibility from points to faces. The conflict graph is represented with bipartite graph. The bipartite graph has two nodes – one for all of the points and one for the facets of the convex hull. Each point in the node of points keeps information about all visible faces and vice versa – each face stores information about the points that are visible from the face. The conflict graph is updated every time when a point is added to the Convex hull.
-
-## Determine the visibility between points and faces
-In order to find out which faces are visible from a single point is very important. The visibility of a face from a point is determined in the following way – if the point is above the surface of the face, then the face is visible from the point and on the contrary if the point is below the surface of the face, then the face is considered as not visible from the point. In order to implement the visibility from point to a face, a helper object was added – the Median of the Convex hull.
-In order to determine if a face is visible from a point, the following algorithm is used:
-* Find the Median of the Convex hull;
-* The Median is projected on the current face;
-* The angles between the Z-axis and the line created from the median to the projected point is calculated. This angle is used for a 3D rotation. The rotation is used to rotate the target face and point in such a way that the face becomes horizontal. When the face is horizontal, the point is checked if is above or below the surface of the face, thus the face is visible or not from the point.
-
-
-## Built With
-
-The project is written mainly in TypeScript. Three.js is used for the representation of the 3D objects. Vite.js is used for a development tool.
-
-* ![TypeScript][TypeScript]
-* ![Threejs][Threejs]
-* ![Vite][Vite]
-
-
-## Getting Started
-
-1. Clone this repo
 ```sh
-   git clone --recursive https://github.com/zlatmar/ConvexHull3D.git
-```
-2. Install NPM packages
-```sh
-   npm install
-```
-3. Run project
-```sh
-   npm run dev
+git clone --recursive https://github.com/zlatmar/ConvexHull3D.git
+cd ConvexHull3D
+npm ci
+npm run dev
 ```
 
-## License
-Distributed under the MIT License. See LICENSE for more information.
+Open the local URL printed by Vite. `index.html` is a Vite entry point; opening it directly as a file does not compile the TypeScript modules. Use the **Pause / Resume**, **New points**, and **Speed** controls; drag to orbit, scroll to zoom, or enable **Rotate view**.
 
+```sh
+npm test
+npm run build
+npm run preview
+```
 
+Tests use Node's built-in test runner and load the TypeScript geometry in memory. The production build separately runs the strict TypeScript checker. Node 20.10.0 was used for local verification; CI uses Node 22.
 
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[TypeScript]: https://img.shields.io/badge/typescript-%23007ACC.svg?style=for-the-badge&logo=typescript&logoColor=white
-[Vite]: https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white
-[Threejs]: https://img.shields.io/badge/threejs-black?style=for-the-badge&logo=three.js&logoColor=white
+## Algorithm and input contract
+
+The geometry engine remains independent of Three.js. `ConvexHull` chooses an affinely independent tetrahedron, orients its faces outward, shuffles the remaining points, and inserts them using a bidirectional point/face conflict graph. The visible faces are replaced by triangles joining the new point to their horizon. Topology lives in a doubly connected edge list (DCEL); live vertices have outgoing incident edges, and deleted faces, edges, vertices, and conflict links are removed.
+
+Visibility and initial-simplex selection use the adaptive orientation predicates from [robust-predicates](https://github.com/mourner/robust-predicates). No trigonometric rotation, decimal rounding, or fixed world-space epsilon is used to decide which side of a plane contains a point. Exactly coplanar points do not see that face. Coplanar facets remain triangulated; their diagonal choice can depend on insertion order.
+
+```ts
+const hull = new ConvexHull(points, { random: seededRandom(42) });
+const triangles = hull.getFaces(); // flat xyz triples, outward triangle winding
+hull.assertValid();               // optional expensive diagnostics
+```
+
+- Each point is `{ number, x, y, z }`, with a unique safe-integer identifier and finite coordinates. Coordinates are copied; the caller's objects and order are preserved.
+- Duplicate coordinates are deduplicated even when their identifiers differ.
+- At least four affinely independent points are required. Empty, collinear, and wholly coplanar sets throw descriptive errors; this API does not return a 2D hull.
+- Nonzero coordinate magnitudes must lie between `1e-75` and `1e75` to keep predicate arithmetic within the supported range. Normalize data outside that range before calling the engine.
+- The optional `random` callback returns values in `[0, 1)`. `validate: true` checks topology and graph reciprocity after each insertion and containment after construction.
+
+The scene advances positions in units per second. Wall reflections include overshoot and multiple collisions. A long browser stall is capped at 50 ms of simulation time per animation frame. Hull and point GPU buffers are reused, including after resetting the points; hot reload disposes renderer resources and event handlers. Camera Z-up is set before constructing OrbitControls, and resize updates the canvas and projection.
+
+## Animation history
+
+Commit [`30f4b6f`](https://github.com/zlatmar/ConvexHull3D/commit/30f4b6f) ("Make points move in the box") introduced the bouncing points and rebuilt a Three.js `ConvexGeometry` every frame. Commit [`ab632a8`](https://github.com/zlatmar/ConvexHull3D/commit/ab632a8) ("3D Convex hull working solution") replaced that implementation with the custom hull but removed the movement loop. The restored scene uses the custom incremental hull, time-based movement, and persistent GPU buffers.
+
+## Regression coverage
+
+The tests cover the review's axis-aligned, collinear-prefix, duplicate-coordinate, cube, and coplanarity failures; tetrahedron permutations; integer grids; random point clouds compared with Three.js QuickHull; translations, scaling, reflection, and near-planar inputs; invalid input; topology and conflict cleanup; wall overshoot; frame-rate independence; and 1,000 frames of hull reconstruction.
+
+QuickHull is used only as an independent test comparison, not by the application. Tests compare volume and containment instead of requiring the same triangulation for coplanar facets.
+
+## DCEL submodule
+
+The reusable DCEL base remains a separate [repository](https://github.com/zlatmar/DCEL). This restoration also fixes its `getFace` implementation and incident-face setter. When publishing the changes, commit those two files in the DCEL repository first, then update this repository's submodule pointer. A parent-only commit will not publish uncommitted submodule changes.
+
+MIT license; see `LICENSE`.

@@ -1,10 +1,5 @@
 type ConflictGraph = {
-    points: {
-        [pointId: string]: string[]
-    },
-    faces: {
-        [faceId: string]: string[]
-    }
+    points: Map<number, Set<string>>;
+    faces: Map<string, Set<number>>;
 };
-
 export default ConflictGraph;

@@ -1,127 +1,152 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import textureUrl from './textures/disc.png'
+import textureUrl from './textures/disc.png';
 import { ConvexHull } from './classes/ConvexHull';
-import { IConvexPoint } from './interfaces';
+import { advanceParticles, BOX_HALF_SIZE, createParticles, seededRandom } from './simulation';
+import './style.css';
 
-interface IPointsMovement {
-	velocity: THREE.Vector3
-}
+const count = 50;
+const app = document.querySelector<HTMLDivElement>('#app')!;
+app.innerHTML = `
+  <section class="panel" aria-label="Animation controls">
+    <h1>Convex hull <span>3D</span></h1>
+    <p>50 moving points. One changing boundary.</p>
+    <div class="actions"><button id="pause" type="button">Pause</button><button id="reset" type="button">New points</button></div>
+    <label class="speed">Speed <input id="speed" type="range" min="0.1" max="3" step="0.1" value="1"><output id="speed-value">1.0×</output></label>
+    <label><input id="rotate" type="checkbox"> Rotate view</label>
+    <p id="status" role="status"></p>
+    <p class="hint">Drag to orbit · Scroll to zoom</p>
+  </section>`;
 
-const size = 1000;
-const sizeHalf = size / 2;
-const pointsCount = 50;
-const maxPointsCount = 1000;
-const pointsData: IPointsMovement[] = [];
-
-
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth, window.innerHeight );
-document.body.appendChild( renderer.domElement );
-
-// Setup a camera
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 4000 );
-camera.position.set(1100, 400, 0);
-
-// Setup camera controller
-const controls = new OrbitControls( camera, renderer.domElement );
-
-controls.enableZoom = true;
-controls.autoRotateSpeed = -1;
-controls.maxDistance = 3000;
-
-// Setup your scene
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+app.prepend(renderer.domElement);
+renderer.domElement.setAttribute('aria-label', 'Animated three dimensional convex hull');
 const scene = new THREE.Scene();
+scene.background = new THREE.Color('#080e18');
 
-// A grid
-const helperGroup = new THREE.Group();
-scene.add( helperGroup );
+const camera = new THREE.PerspectiveCamera(60, 1, 1, 5000);
+camera.up.set(0, 0, 1);
+camera.position.set(1150, 850, 650);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.minDistance = 350;
+controls.maxDistance = 3000;
+controls.autoRotateSpeed = 0.5;
 
-const material = new THREE.MeshBasicMaterial({ color: '#0074D9' });
-const gridHelper = new THREE.GridHelper(size, size / 10, "hsl(0, 0%, 50%)", "hsl(0, 0%, 70%)");
-gridHelper.rotation.x = Math.PI / 2;
-gridHelper.position.z = -sizeHalf / 2;
+const boxGeometry = new THREE.BoxGeometry(BOX_HALF_SIZE.x * 2, BOX_HALF_SIZE.y * 2, BOX_HALF_SIZE.z * 2);
+const boxEdges = new THREE.EdgesGeometry(boxGeometry);
+boxGeometry.dispose();
+const boxMaterial = new THREE.LineBasicMaterial({ color: '#5a7290', transparent: true, opacity: 0.5 });
+scene.add(new THREE.LineSegments(boxEdges, boxMaterial));
+const grid = new THREE.GridHelper(1000, 10, '#31435b', '#1b293c');
+grid.rotation.x = Math.PI / 2;
+grid.position.z = -BOX_HALF_SIZE.z;
+scene.add(grid);
 
-scene.add(gridHelper);
-const boxMesh = new THREE.Mesh( new THREE.BoxGeometry( size, size , size / 2 ), material.clone() );
-boxMesh.position.y = 0;
-const boxHelper = new THREE.BoxHelper( boxMesh );
-(boxHelper.material as THREE.MeshBasicMaterial).color.setHex( 0xFFFFFF );
-scene.add( boxHelper );
-camera.up.set(0,0,1);
+const positions = new Float32Array(count * 3);
+const pointGeometry = new THREE.BufferGeometry();
+const pointAttribute = new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage);
+pointGeometry.setAttribute('position', pointAttribute);
+const sprite = new THREE.TextureLoader().load(textureUrl);
+const pointMaterial = new THREE.PointsMaterial({ color: '#ffffff', size: 7, sizeAttenuation: false, alphaTest: 0.5, map: sprite });
+const pointCloud = new THREE.Points(pointGeometry, pointMaterial);
+pointCloud.frustumCulled = false;
+scene.add(pointCloud);
 
-const pointsPositions = new Float32Array( maxPointsCount * 3 );
+// A triangulated 3D hull has at most 2n-4 faces. Keep GPU buffers for the whole session.
+const hullPositions = new Float32Array((2 * count - 4) * 9);
+const hullAttribute = new THREE.BufferAttribute(hullPositions, 3).setUsage(THREE.DynamicDrawUsage);
+const hullGeometry = new THREE.BufferGeometry();
+hullGeometry.setAttribute('position', hullAttribute);
+const hullMaterial = new THREE.MeshBasicMaterial({ wireframe: true, color: '#64d8f5', transparent: true, opacity: 0.8 });
+const hullMesh = new THREE.Mesh(hullGeometry, hullMaterial);
+hullMesh.frustumCulled = false;
+scene.add(hullMesh);
 
-let points: Array<IConvexPoint> = [];
-for ( let i = 0; i < pointsCount; i++ ) {
-    const point: IConvexPoint = {
-        number: i + 1,
-        x: THREE.MathUtils.randFloatSpread( size - 100 ),
-        y: THREE.MathUtils.randFloatSpread( size - 100 ),
-        z: THREE.MathUtils.randFloatSpread( size / 4 )
-    };
-	pointsPositions[ i * 3 ] = point.x;
-	pointsPositions[ i * 3 + 1 ] = point.y;
-	pointsPositions[ i * 3 + 2 ] = point.z;
-    
-    points.push(point);
-	
-    pointsData.push({
-		velocity: new THREE.Vector3( -1 * Math.random() * 2, -1 * Math.random() * 2, -1 * Math.random() * 2 )
-	});
+const pauseButton = document.querySelector<HTMLButtonElement>('#pause')!;
+const resetButton = document.querySelector<HTMLButtonElement>('#reset')!;
+const speedInput = document.querySelector<HTMLInputElement>('#speed')!;
+const rotateInput = document.querySelector<HTMLInputElement>('#rotate')!;
+const speedValue = document.querySelector<HTMLOutputElement>('#speed-value')!;
+const status = document.querySelector<HTMLParagraphElement>('#status')!;
+let particles = createParticles(count);
+let points = particles.map(particle => particle.point);
+let running = true;
+let speed = 1;
+let frame = 0;
+let previousTime = 0;
+let disposed = false;
+
+function updateHull(): void {
+    try {
+        const hull = new ConvexHull(points, { random: seededRandom(42) });
+        const coordinates = hull.getFaces();
+        hullPositions.set(coordinates);
+        hullGeometry.setDrawRange(0, coordinates.length / 3);
+        hullAttribute.needsUpdate = true;
+        points.forEach((point, i) => positions.set([point.x, point.y, point.z], i * 3));
+        pointAttribute.needsUpdate = true;
+        status.textContent = `${coordinates.length / 9} faces · ${running ? 'Live' : 'Paused'}`;
+    } catch (error) {
+        running = false;
+        hullGeometry.setDrawRange(0, 0);
+        pauseButton.textContent = 'Resume';
+        status.textContent = `Animation stopped: ${error instanceof Error ? error.message : 'Hull calculation failed.'}`;
+        console.error(error);
+    }
 }
 
-let vectors: Array<THREE.Vector3> = [];
-for (let i = 0; i < pointsCount; i++) {
-	vectors.push(new THREE.Vector3(pointsPositions[ i * 3 ], pointsPositions[ i * 3 + 1 ], pointsPositions[ i * 3 + 2 ]))
-}
-
-const geometry = new THREE.BufferGeometry();
-geometry.setDrawRange( 0, pointsCount );
-geometry.setAttribute( 'position', new THREE.BufferAttribute( pointsPositions, 3 ).setUsage( THREE.DynamicDrawUsage ) );
-
-const sprite = new THREE.TextureLoader().load( textureUrl );
-const pMaterial = new THREE.PointsMaterial({
-	color: 0xFFFFFF,
-	size: 10,
-	sizeAttenuation: false,
-	alphaTest: 0.5,
-	map: sprite,
-});
-
-const pointCloud = new THREE.Points( geometry, pMaterial );
-scene.add(pointCloud)
-
-let group = new THREE.Group();
-scene.add( group );
-
-const ch = new ConvexHull([...points]);
-
-const coords: number[] = ch.getFaces()
-
-let vertsArray = new Float32Array(coords);
-
-let geometryCustom = new THREE.BufferGeometry();
-let bufferGeometryCustom = new THREE.BufferAttribute( vertsArray, 3 );
-geometryCustom.setAttribute( 'position', bufferGeometryCustom);
-const materialCustom = new THREE.MeshBasicMaterial({
-    side: THREE.FrontSide,
-	wireframe: true,
-    color: 0xFFFFFF
-});
-
-// Create a mesh
-const meshCustom = new THREE.Mesh(geometryCustom, materialCustom);
-scene.add(meshCustom);
-
-camera.position.z = 5;
-
-const animate = () => {
-    requestAnimationFrame( animate );
-
-	controls.update();
-
-	renderer.render( scene, camera );
+pauseButton.onclick = () => {
+    running = !running;
+    pauseButton.textContent = running ? 'Pause' : 'Resume';
+    updateHull();
 };
+resetButton.onclick = () => {
+    particles = createParticles(count);
+    points = particles.map(particle => particle.point);
+    updateHull();
+};
+speedInput.oninput = () => { speed = Number(speedInput.value); speedValue.value = `${speed.toFixed(1)}×`; };
+rotateInput.onchange = () => { controls.autoRotate = rotateInput.checked; };
 
-animate();
+function resize(): void {
+    const width = app.clientWidth, height = app.clientHeight;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(width, height);
+    camera.aspect = width / Math.max(1, height);
+    // Preserve horizontal framing when the window becomes narrower than it is tall.
+    camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(Math.PI / 6) / Math.min(1, camera.aspect)));
+    camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+updateHull();
+
+function animate(time: number): void {
+    if (disposed) return;
+    const seconds = previousTime ? Math.min((time - previousTime) / 1000, 0.05) : 0;
+    previousTime = time;
+    if (running && seconds > 0) {
+        advanceParticles(particles, seconds * speed);
+        updateHull();
+    }
+    controls.update();
+    renderer.render(scene, camera);
+    frame = requestAnimationFrame(animate);
+}
+frame = requestAnimationFrame(animate);
+
+function dispose(): void {
+    disposed = true;
+    cancelAnimationFrame(frame);
+    window.removeEventListener('resize', resize);
+    controls.dispose();
+    pointGeometry.dispose(); hullGeometry.dispose(); boxEdges.dispose(); grid.geometry.dispose();
+    pointMaterial.dispose(); hullMaterial.dispose(); boxMaterial.dispose(); sprite.dispose();
+    const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+    gridMaterials.forEach(material => material.dispose());
+    renderer.dispose();
+    app.replaceChildren();
+}
+if (import.meta.hot) import.meta.hot.dispose(dispose);

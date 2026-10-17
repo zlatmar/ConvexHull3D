@@ -6,6 +6,7 @@ import { IConvexFace } from "./IConvexFace";
 import { IPoint3D } from "./IPoint3D";
 import { IConvexVertex } from "./IConvexVertex";
 import { IConvexHalfEdge } from './IConvexHalfEdge';
+import { IHalfEdge } from "../../DCEL/intefaces";
 
 export type {
     IConvexHalfEdge,
@@ -13,6 +14,7 @@ export type {
     IConvexVertex,
     IConvexPoint,
     IConvexFace,
+    IHalfEdge,
     IPoint3D,
     IVector,
     IPoint

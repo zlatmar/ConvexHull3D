@@ -51,7 +51,10 @@ class ConvexFace extends Face implements IConvexFace {
             z: vectorOne.x * vectorTwo.y - vectorOne.y * vectorTwo.x
         };
     
-        var length = Math.sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+        const length = Math.hypot(normal.x, normal.y, normal.z);
+        if (!Number.isFinite(length) || length === 0) {
+            throw new RangeError('Cannot normalize a degenerate face normal.');
+        }
         
         normal.x = normal.x / length;
         normal.y = normal.y / length;
